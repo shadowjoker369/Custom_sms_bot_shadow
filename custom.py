@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import requests
+import urllib.parse
 from flask import Flask, request
 
 # -----------------------------
@@ -34,11 +35,22 @@ def send_message(chat_id, text, buttons=None):
 # -----------------------------
 def send_sms(number, message):
     try:
+        number = urllib.parse.quote(number)
+        message = urllib.parse.quote(message)
         url = f"{SMS_API_URL}?key={SMS_API_KEY}&number={number}&message={message}"
-        res = requests.get(url, timeout=5)
-        return res.text
+        res = requests.get(url, timeout=10)
+
+        # Clean response
+        try:
+            data = res.json()
+            if data.get("status") == "success":
+                return "✅ SMS সফলভাবে পাঠানো হয়েছে"
+            else:
+                return f"❌ Error: {data.get('message', 'Unknown error')}"
+        except:
+            return res.text
     except Exception as e:
-        return str(e)
+        return f"⚠ Exception: {e}"
 
 # -----------------------------
 # Flask Routes
@@ -57,7 +69,7 @@ def webhook():
         chat_id = msg["chat"]["id"]
         text = msg.get("text", "")
 
-        # /start command → Bot info + Send Message button
+        # /start → Bot info + Send Message button
         if text == "/start":
             msg_table = """
 ╔══════════════════════╗
@@ -81,7 +93,6 @@ def webhook():
         chat_id = query["message"]["chat"]["id"]
         data = query["data"]
 
-        # Start Send Message flow
         if data == "start_send":
             send_message(chat_id, "📲 দয়া করে নাম্বার লিখুন:")
             user_state[chat_id] = {"step": "awaiting_number"}
@@ -105,9 +116,11 @@ def webhook():
                 custom_message = text
 
                 result = send_sms(phone, custom_message)
-                send_message(chat_id, f"✅ SMS পাঠানো হলো!\n\n📞 নাম্বার: {phone}\n💬 মেসেজ: {custom_message}\n\nAPI Response: `{result}`")
+                send_message(
+                    chat_id,
+                    f"📞 নাম্বার: {phone}\n💬 মেসেজ: {custom_message}\n\nStatus: {result}"
+                )
 
-                # Clear user memory
                 user_state.pop(chat_id, None)
 
     return "ok"
