@@ -6,8 +6,9 @@ from flask import Flask, request
 # -----------------------------
 # Environment Variables
 # -----------------------------
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-SMS_API_URL = os.environ.get("SMS_API_URL")  # Custom SMS API, Key লাগবে না
+BOT_TOKEN = os.environ.get("BOT_TOKEN")  # Render এ এড করবেন
+SMS_API_URL = os.environ.get("SMS_API_URL")  # যেমন: https://hl-hadi.mooo.com/ss/sms.php
+SMS_API_KEY = os.environ.get("SMS_API_KEY")  # যেমন: 4eea4424
 
 WEBHOOK_URL = f"https://custom-sms-bot-shadow.onrender.com/{BOT_TOKEN}"
 API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/"
@@ -33,7 +34,7 @@ def send_message(chat_id, text, buttons=None):
 # -----------------------------
 def send_sms(number, message):
     try:
-        url = f"{SMS_API_URL}?to={number}&msg={message}"
+        url = f"{SMS_API_URL}?key={SMS_API_KEY}&number={number}&message={message}"
         res = requests.get(url, timeout=5)
         return res.text
     except Exception as e:
@@ -56,7 +57,7 @@ def webhook():
         chat_id = msg["chat"]["id"]
         text = msg.get("text", "")
 
-        # /start with Send Message button
+        # /start command → Bot info + Send Message button
         if text == "/start":
             msg_table = """
 ╔══════════════════════╗
@@ -85,10 +86,7 @@ def webhook():
             send_message(chat_id, "📲 দয়া করে নাম্বার লিখুন:")
             user_state[chat_id] = {"step": "awaiting_number"}
 
-        # Name/Message input handled as normal messages
-        # (প্রয়োজন হলে স্টেট চেক করে)
-    
-    # Message input for number or custom message
+    # Handle number or message input
     if "message" in update:
         msg = update["message"]
         chat_id = msg["chat"]["id"]
@@ -109,6 +107,7 @@ def webhook():
                 result = send_sms(phone, custom_message)
                 send_message(chat_id, f"✅ SMS পাঠানো হলো!\n\n📞 নাম্বার: {phone}\n💬 মেসেজ: {custom_message}\n\nAPI Response: `{result}`")
 
+                # Clear user memory
                 user_state.pop(chat_id, None)
 
     return "ok"
