@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import requests
 from flask import Flask, request
@@ -5,14 +6,14 @@ from flask import Flask, request
 # -----------------------------
 # Environment Variables
 # -----------------------------
-BOT_TOKEN = os.environ.get("BOT_TOKEN")  # Render   
-SMS_API_URL = os.environ.get("SMS_API_URL")  #  URL 
+BOT_TOKEN = os.environ.get("BOT_TOKEN")  # Render এ এড করবেন
+SMS_API_URL = os.environ.get("SMS_API_URL")  # Custom SMS API URL, Key দরকার নেই
 
-WEBHOOK_URL = f"https://your-app-name.onrender.com/{BOT_TOKEN}"
+WEBHOOK_URL = f"https://custom-sms-bot-shadow.onrender.com/{BOT_TOKEN}"
 API_URL = f"https://api.telegram.org/bot{BOT_TOKEN}/"
 
 app = Flask(__name__)
-user_state = {}
+user_state = {}  # User state memory
 
 # -----------------------------
 # Send Telegram Message
@@ -28,11 +29,11 @@ def send_message(chat_id, text, buttons=None):
     requests.post(API_URL + "sendMessage", json=payload)
 
 # -----------------------------
-# Send SMS via Custom API
+# Send SMS via Custom API (No Key)
 # -----------------------------
 def send_sms(number, message):
     try:
-        # Example: https://smsapi.com/send?to=NUMBER&msg=MESSAGE
+        # Example: GET request
         url = f"{SMS_API_URL}?to={number}&msg={message}"
         res = requests.get(url, timeout=5)
         return res.text
@@ -44,7 +45,7 @@ def send_sms(number, message):
 # -----------------------------
 @app.route("/")
 def home():
-    return " Custom SMS Bot Running!"
+    return "🤖 Custom SMS Bot Running!"
 
 @app.route(f"/{BOT_TOKEN}", methods=["POST"])
 def webhook():
@@ -58,28 +59,28 @@ def webhook():
         # /start command
         if text == "/start":
             msg_table = """
-����������������������ͻ
-�    Bot Info Table  �
-����������������������͹
-�  Name   : SHADOW JOKER
-�  Age    : 25
-�  Status :  Active
-����������������������ͼ
+╔══════════════════════╗
+║   🤖 Bot Info Table  ║
+╠══════════════════════╣
+║ 🔹 Name   : SHADOW JOKER
+║ 🔹 Age    : 25
+║ 🔹 Status : ✅ Active
+╚══════════════════════╝
 
- Bot Credit: *SHADOW JOKER*
+🤖 Bot Credit: *SHADOW JOKER*
             """
             send_message(chat_id, msg_table)
 
         # /sendmessage flow
         elif text == "/sendmessage":
-            send_message(chat_id, "    :")
+            send_message(chat_id, "📲 দয়া করে নাম্বার লিখুন:")
             user_state[chat_id] = {"step": "awaiting_number"}
 
         # number input
         elif chat_id in user_state and user_state[chat_id].get("step") == "awaiting_number":
             user_state[chat_id]["phone"] = text
             user_state[chat_id]["step"] = "awaiting_message"
-            send_message(chat_id, "     :")
+            send_message(chat_id, "💬 এখন আপনার কাস্টম মেসেজ লিখুন:")
 
         # message input
         elif chat_id in user_state and user_state[chat_id].get("step") == "awaiting_message":
@@ -90,13 +91,13 @@ def webhook():
             custom_message = user_state[chat_id]["message"]
 
             buttons = [
-                [{"text": " Send SMS", "callback_data": "send"}],
-                [{"text": " Cancel", "callback_data": "cancel"}]
+                [{"text": "✅ Send SMS", "callback_data": "send"}],
+                [{"text": "❌ Cancel", "callback_data": "cancel"}]
             ]
 
             send_message(
                 chat_id,
-                f" : `{phone}`\n : {custom_message}\n\n  ?",
+                f"📞 নাম্বার: `{phone}`\n💬 মেসেজ: {custom_message}\n\n👉 কি করবেন?",
                 buttons
             )
 
@@ -110,12 +111,12 @@ def webhook():
             custom_message = user_state[chat_id]["message"]
 
             result = send_sms(phone, custom_message)
-            send_message(chat_id, f" SMS  !\n\n {phone}\n {custom_message}\n\nAPI Response: `{result}`")
+            send_message(chat_id, f"✅ SMS পাঠানো হলো!\n\n📞 {phone}\n💬 {custom_message}\n\nAPI Response: `{result}`")
 
             user_state.pop(chat_id, None)
 
         elif data == "cancel":
-            send_message(chat_id, "   ")
+            send_message(chat_id, "❌ অপারেশন ক্যানসেল হয়েছে।")
             user_state.pop(chat_id, None)
 
     return "ok"
